@@ -5,11 +5,15 @@ library(crosstalk)
 library(readr)
 library(ggvis)
 
+txt <- readLines(gzcon(url("http://geneontology.org/gene-associations/gene_association.sgn.gz")))
+SGN_data <- read.table(textConnection(txt),skip = 24, header = F, sep = "\t", strip.white = F, stringsAsFactors = T, skipNul = T, quote = "",comment.char = "")
+txt <- readLines(gzcon(url("http://geneontology.org/gene-associations/goa_human_rna.gaf.gz")))
+HS_rna_data <- read.table(textConnection(txt),skip = 30, header = F, sep = "\t", strip.white = F, stringsAsFactors = T, skipNul = T, quote = "",comment.char = "")
+
 # Define UI for application that draws a histogram
 ui <- fluidPage(    
   # Application title
   titlePanel("Hello Shiny World!"),
-  
   # Sidebar with a slider input for the number of bins
   sidebarPanel(
     radioButtons("radio", label = h3("Choose organism"),
@@ -17,8 +21,9 @@ ui <- fluidPage(
                  selected = NULL),
     
     hr(),
-    fluidRow(column(10, verbatimTextOutput("value")))
-    
+    fluidRow(column(10, verbatimTextOutput("value"))),
+    uiOutput("data"),
+    uiOutput("data2")
   ),
   
   # Show a plot of the generated distribution
@@ -26,7 +31,9 @@ ui <- fluidPage(
     tabsetPanel(
       tabPanel("Summary", verbatimTextOutput("summary")),
       tabPanel("Table", tableOutput("view")),
-      tabPanel("Plot", plotlyOutput("aspect"))
+      tabPanel("Plot", plotlyOutput("aspect")),
+      tabPanel("Bar Plot of Genes",plotOutput("bars")),
+      tabPanel("Bar Plot of Go terms",plotOutput("bars2"))
     )
   )
 )
@@ -47,6 +54,16 @@ server <- function(input, output) {
     current_data
     })
     
+  output$data <- renderUI({
+    data <- datasetInput()
+    selectInput("genes",label="gene",choices=sort(unique(data$V3)),selected=data$V3[1])
+  })
+  
+  output$data2 <- renderUI({
+    data <- datasetInput()
+    selectInput("goterms",label="go terms",choices=sort(unique(data$V5)),selected=data$V5[1])
+  })
+  
   output$summary <- renderPrint({
     dataset <- datasetInput()
     summary(dataset)
@@ -63,8 +80,18 @@ server <- function(input, output) {
     ggplotly(gg)
   })
   
-
+  output$bars <- renderPlot({
+    gg <-  datasetInput() %>% filter(V3==input$genes) %>% ggplot(aes(x=V9))+
+      geom_bar(stat = "count")
+    gg
+  })
   
+  output$bars2 <- renderPlot({
+    gg <-  datasetInput() %>% filter(V5==input$goterms) %>% ggplot(aes(x=V9))+
+      geom_bar(stat = "count")
+    gg
+  })
+
 }
 
 # Bind ui and server together
